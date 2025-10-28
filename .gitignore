@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual Environment
+.rubberduck/
+venv/
+env/
+
+# Environment Variables
+.env
+.env.local
+
+# Database (DO NOT COMMIT)
+*.sqlite3
+*.db
+
+# Node
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
