@@ -76,11 +76,11 @@ function ChapterDetail() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <svg className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-8 w-8 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading chapter...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading chapter...</p>
         </div>
       </div>
     );
@@ -90,10 +90,10 @@ function ChapterDetail() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || 'Chapter not found'}</p>
+          <p className="text-red-600 dark:text-red-400 mb-4">{error || 'Chapter not found'}</p>
           <button
             onClick={() => navigate(`/explanation/${explanationId}`)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             Back to Overview
           </button>
@@ -106,17 +106,17 @@ function ChapterDetail() {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center max-w-md">
-          <svg className="animate-spin h-12 w-12 text-blue-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-12 w-12 text-blue-600 dark:text-blue-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Chapter is being built...</h2>
-          <p className="text-gray-600 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Chapter is being built...</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
             Our AI is generating detailed content for this chapter. This usually takes a minute or two.
           </p>
           <button
             onClick={() => navigate(`/explanation/${explanationId}`)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             Back to Overview
           </button>
@@ -138,25 +138,25 @@ function ChapterDetail() {
 
       {/* Chapter Title */}
       <div className="mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+        <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
           {chapter.title}
         </h1>
       </div>
 
       {/* Chapter Content */}
-      <div className="prose prose-lg max-w-none">
+      <div className="prose prose-lg max-w-none dark:prose-invert">
         {chapter.contents && chapter.contents.length > 0 ? (
           chapter.contents.map((content) => renderContent(content))
         ) : (
-          <p className="text-gray-500">No content available for this chapter.</p>
+          <p className="text-gray-500 dark:text-gray-400">No content available for this chapter.</p>
         )}
       </div>
 
       {/* Navigation Footer */}
-      <div className="mt-12 pt-8 border-t border-gray-200">
+      <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
         <Link
           to={`/explanation/${explanationId}`}
-          className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+          className="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
