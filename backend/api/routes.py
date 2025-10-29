@@ -10,6 +10,8 @@ from api.schemas import (
     PlannerResponse,
     ChapterResponse,
     ExplanationStatusResponse,
+    RebuildResponse,
+    IncompleteChaptersResponse,
 )
 from api.genai import planner_service, builder_service
 
@@ -128,12 +130,39 @@ async def list_explanations():
 
 
 @router.get("/explanations/{explanation_id}", response_model=ExplanationResponse)
-async def get_explanation(explanation_id: str):
+async def get_explanation(explanation_id: str, background_tasks: BackgroundTasks):
     """
     Get a specific explanation with its chapters.
+    Automatically triggers rebuild for any incomplete chapters.
     """
     try:
         explanation = await Explanation.get(id=explanation_id).prefetch_related("chapters")
+
+        # Check for incomplete chapters and auto-rebuild
+        incomplete_chapters = []
+        for chapter in explanation.chapters:
+            await chapter.fetch_related("contents")
+
+            # Check if chapter is incomplete (error, pending, or completed but empty)
+            if chapter.status in ["pending", "building", "error"] or (chapter.status == "completed" and len(chapter.contents) == 0):
+                # Reset status if it's completed but empty
+                if chapter.status == "completed" and len(chapter.contents) == 0:
+                    chapter.status = "pending"
+                    await chapter.save()
+
+                incomplete_chapters.append({
+                    "id": str(chapter.id),
+                    "title": chapter.title,
+                    "status": chapter.status
+                })
+
+        # Auto-rebuild incomplete chapters in background
+        if incomplete_chapters:
+            background_tasks.add_task(
+                rebuild_chapters,
+                concept=explanation.text,
+                chapters=incomplete_chapters
+            )
 
         return ExplanationResponse(
             id=explanation.id,
@@ -210,3 +239,215 @@ async def get_explanation_status(explanation_id: str):
         )
     except Exception as e:
         raise HTTPException(status_code=404, detail="Explanation not found")
+
+
+@router.get("/chapters/incomplete", response_model=IncompleteChaptersResponse)
+async def get_incomplete_chapters():
+    """
+    Get all chapters that are incomplete (pending, building, error, or empty).
+    Returns chapters that need to be rebuilt.
+    """
+    try:
+        # Find chapters that are not completed or have no content
+        incomplete_chapters = []
+
+        # Get all chapters with status not "completed"
+        chapters = await Chapter.filter(status__in=["pending", "building", "error"]).prefetch_related("parent", "contents")
+
+        for chapter in chapters:
+            incomplete_chapters.append({
+                "chapter_id": str(chapter.id),
+                "explanation_id": str(chapter.parent_id),
+                "title": chapter.title,
+                "status": chapter.status,
+                "concept": chapter.parent.text if chapter.parent else "Unknown",
+                "content_count": len(chapter.contents)
+            })
+
+        # Also check for "completed" chapters with no content (failed silently)
+        completed_empty = await Chapter.filter(status="completed").prefetch_related("parent", "contents")
+        for chapter in completed_empty:
+            if len(chapter.contents) == 0:
+                incomplete_chapters.append({
+                    "chapter_id": str(chapter.id),
+                    "explanation_id": str(chapter.parent_id),
+                    "title": chapter.title,
+                    "status": "completed_but_empty",
+                    "concept": chapter.parent.text if chapter.parent else "Unknown",
+                    "content_count": 0
+                })
+
+        return IncompleteChaptersResponse(
+            total_incomplete=len(incomplete_chapters),
+            chapters=incomplete_chapters
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch incomplete chapters: {str(e)}")
+
+
+@router.post("/chapters/rebuild", response_model=RebuildResponse)
+async def rebuild_incomplete_chapters(background_tasks: BackgroundTasks):
+    """
+    Find all incomplete chapters and rebuild them in the background.
+    This is useful for recovering from failed chapter generation.
+    """
+    try:
+        # Find all incomplete chapters
+        incomplete_chapters = []
+
+        # Get chapters that are not completed or have errors
+        chapters = await Chapter.filter(status__in=["pending", "building", "error"]).prefetch_related("parent", "contents")
+
+        for chapter in chapters:
+            incomplete_chapters.append({
+                "id": str(chapter.id),
+                "title": chapter.title,
+                "concept": chapter.parent.text if chapter.parent else "Unknown"
+            })
+
+        # Also find completed chapters with no content
+        completed_empty = await Chapter.filter(status="completed").prefetch_related("parent", "contents")
+        for chapter in completed_empty:
+            if len(chapter.contents) == 0:
+                # Reset status to pending so it can be rebuilt
+                chapter.status = "pending"
+                await chapter.save()
+
+                incomplete_chapters.append({
+                    "id": str(chapter.id),
+                    "title": chapter.title,
+                    "concept": chapter.parent.text if chapter.parent else "Unknown"
+                })
+
+        if not incomplete_chapters:
+            return RebuildResponse(
+                message="No incomplete chapters found",
+                incomplete_chapters=0,
+                chapters_to_rebuild=[]
+            )
+
+        # Group chapters by explanation for efficient rebuilding
+        chapters_by_explanation = {}
+        for chapter in incomplete_chapters:
+            concept = chapter["concept"]
+            if concept not in chapters_by_explanation:
+                chapters_by_explanation[concept] = []
+            chapters_by_explanation[concept].append(chapter)
+
+        # Schedule rebuild tasks
+        for concept, chapter_list in chapters_by_explanation.items():
+            background_tasks.add_task(
+                rebuild_chapters,
+                concept=concept,
+                chapters=chapter_list
+            )
+
+        return RebuildResponse(
+            message=f"Rebuilding {len(incomplete_chapters)} incomplete chapter(s) in the background",
+            incomplete_chapters=len(incomplete_chapters),
+            chapters_to_rebuild=incomplete_chapters
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to rebuild chapters: {str(e)}")
+
+
+@router.post("/explanations/{explanation_id}/rebuild", response_model=RebuildResponse)
+async def rebuild_explanation_chapters(explanation_id: str, background_tasks: BackgroundTasks):
+    """
+    Rebuild all incomplete chapters for a specific explanation.
+    """
+    try:
+        explanation = await Explanation.get(id=explanation_id).prefetch_related("chapters")
+
+        # Find incomplete chapters in this explanation
+        incomplete_chapters = []
+
+        for chapter in explanation.chapters:
+            # Check if chapter is incomplete
+            await chapter.fetch_related("contents")
+
+            if chapter.status in ["pending", "building", "error"] or (chapter.status == "completed" and len(chapter.contents) == 0):
+                # Reset status if it's completed but empty
+                if chapter.status == "completed" and len(chapter.contents) == 0:
+                    chapter.status = "pending"
+                    await chapter.save()
+
+                incomplete_chapters.append({
+                    "id": str(chapter.id),
+                    "title": chapter.title,
+                    "status": chapter.status
+                })
+
+        if not incomplete_chapters:
+            return RebuildResponse(
+                message="No incomplete chapters found for this explanation",
+                incomplete_chapters=0,
+                chapters_to_rebuild=[]
+            )
+
+        # Schedule rebuild task
+        background_tasks.add_task(
+            rebuild_chapters,
+            concept=explanation.text,
+            chapters=incomplete_chapters
+        )
+
+        return RebuildResponse(
+            message=f"Rebuilding {len(incomplete_chapters)} chapter(s) for '{explanation.text}'",
+            incomplete_chapters=len(incomplete_chapters),
+            chapters_to_rebuild=incomplete_chapters
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="Explanation not found")
+
+
+async def rebuild_chapters(concept: str, chapters: List[dict]):
+    """
+    Background task: Rebuild content for specific chapters.
+    Similar to build_all_chapters but for recovery.
+    """
+    for chapter_data in chapters:
+        try:
+            # Get the chapter
+            chapter = await Chapter.get(id=chapter_data["id"])
+
+            # Clear any existing content (in case of partial generation)
+            await Content.filter(chapter_id=chapter.id).delete()
+
+            # Update status to building
+            chapter.status = "building"
+            await chapter.save()
+
+            # Generate content using Builder AI
+            content_items = await builder_service.build_chapter_content(
+                concept=concept,
+                chapter_title=chapter_data["title"]
+            )
+
+            # Save content items to database
+            for item in content_items:
+                await Content.create(
+                    id=uuid4(),
+                    chapter_id=chapter.id,
+                    content_type=item["content_type"],
+                    value=item["value"]
+                )
+
+            # Update status to completed
+            chapter.status = "completed"
+            await chapter.save()
+
+            print(f"Successfully rebuilt chapter: {chapter_data['title']}")
+
+        except Exception as e:
+            # Log error and mark as error
+            print(f"Error rebuilding chapter {chapter_data['id']}: {e}")
+            try:
+                chapter = await Chapter.get(id=chapter_data["id"])
+                chapter.status = "error"
+                await chapter.save()
+            except:
+                pass

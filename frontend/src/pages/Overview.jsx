@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { explanationsAPI } from '../services/api';
 import Breadcrumb from '../components/Breadcrumb';
+import SocialLinks from '../components/SocialLinks';
 import { usePageTitle } from '../hooks/usePageTitle';
 
 function Overview() {
@@ -194,6 +195,9 @@ function Overview() {
           )}
         </div>
       </div>
+
+      {/* Social Links Footer */}
+      <SocialLinks />
     </div>
   );
 }

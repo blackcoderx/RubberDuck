@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { explanationsAPI } from '../services/api';
 import { usePageTitle } from '../hooks/usePageTitle';
+import SocialLinks from '../components/SocialLinks';
 
 function Home() {
   const [concept, setConcept] = useState('');
@@ -109,6 +110,11 @@ function Home() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Social Links */}
+        <div className="mt-12">
+          <SocialLinks />
         </div>
       </div>
     </div>

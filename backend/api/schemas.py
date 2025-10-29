@@ -92,3 +92,16 @@ class ExplanationStatusResponse(BaseModel):
     completed_chapters: int
     pending_chapters: int
     status: str  # "planning", "building", "completed"
+
+
+# Rebuild Response
+class RebuildResponse(BaseModel):
+    message: str
+    incomplete_chapters: int
+    chapters_to_rebuild: List[dict]
+
+
+# Incomplete Chapters Response
+class IncompleteChaptersResponse(BaseModel):
+    total_incomplete: int
+    chapters: List[dict]

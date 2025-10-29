@@ -43,6 +43,24 @@ export const chaptersAPI = {
     const response = await api.get(`/api/chapters/${id}`);
     return response.data;
   },
+
+  // Get all incomplete chapters
+  getIncomplete: async () => {
+    const response = await api.get('/api/chapters/incomplete');
+    return response.data;
+  },
+
+  // Rebuild all incomplete chapters
+  rebuildAll: async () => {
+    const response = await api.post('/api/chapters/rebuild');
+    return response.data;
+  },
+
+  // Rebuild incomplete chapters for specific explanation
+  rebuildForExplanation: async (explanationId) => {
+    const response = await api.post(`/api/explanations/${explanationId}/rebuild`);
+    return response.data;
+  },
 };
 
 export default api;
